@@ -1,0 +1,17 @@
+# Entorno virtual de Python
+venv/
+
+# Archivo que no deseo subir
+USUARIOS_Y_ACCESOS.txt
+
+# Archivos temporales de Python
+__pycache__/
+*.py[cod]
+
+# Archivos de configuración de IDE
+.vscode/
+.idea/
+
+# Variables de entorno
+.env
+.env.*
