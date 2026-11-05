@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{color-scheme:light dark}
+body{font-family:Inter,system-ui,sans-serif;margin:0;background:transparent;color:var(--text-color,#334155)}
+button{border:1px solid var(--primary-color,#3478A8);border-radius:10px;padding:8px 12px;background:var(--secondary-background-color,transparent);color:var(--text-color,inherit);cursor:pointer;font-size:13px;font-weight:600;transition:filter .15s ease}
+button:hover{filter:brightness(.94)}button:disabled{opacity:.5;cursor:not-allowed}
+#status{font-size:11px;margin-left:8px;opacity:.78;overflow-wrap:anywhere}
+</style>
+</head>
+<body>
+<button id="mic" type="button">🎙️ Dictar</button><span id="status">Listo para escuchar</span>
+<script>
+const mic=document.getElementById('mic'),status=document.getElementById('status');
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null, transcript='', silenceTimer=null, nonce=0, listening=false, lastSpeakId=null;
+function send(value){window.parent.postMessage({isStreamlitMessage:true,type:'streamlit:setComponentValue',value,dataType:'json'},'*')}
+
+// Convierte Markdown y símbolos visuales en una narración natural.
+// Solo afecta a la voz: el mensaje original sigue mostrándose con formato.
+function limpiarTextoParaVoz(texto){
+ let t = String(texto || '');
+
+ // Eliminar bloques de código y etiquetas HTML.
+ t = t.replace(/```[\s\S]*?```/g, ' ');
+ t = t.replace(/`([^`]+)`/g, '$1');
+ t = t.replace(/<[^>]*>/g, ' ');
+
+ // Conservar el texto visible de enlaces e imágenes Markdown.
+ t = t.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
+ t = t.replace(/\[([^\]]+)\]\((?:[^()]|\([^()]*\))*\)/g, '$1');
+ t = t.replace(/https?:\/\/\S+/gi, ' ');
+
+ // Quitar encabezados, citas, listas y separadores Markdown.
+ t = t.replace(/^\s{0,3}#{1,6}\s*/gm, '');
+ t = t.replace(/^\s{0,3}>\s?/gm, '');
+ t = t.replace(/^\s*[-+*]\s+/gm, '');
+ t = t.replace(/^\s*\d+[.)]\s+/gm, '');
+ t = t.replace(/^\s*[-*_]{3,}\s*$/gm, ' ');
+
+ // Quitar marcadores de negrita, cursiva y tachado.
+ t = t.replace(/\*\*|__|~~|\*|_/g, '');
+
+ // Quitar emojis y pictogramas Unicode (sin eliminar letras ni tildes).
+ try {
+   t = t.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, ' ');
+ } catch(e) {
+   // Compatibilidad con navegadores antiguos.
+   t = t.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, ' ');
+ }
+
+ // Evitar que se lean barras, pipes o caracteres de formato.
+ t = t.replace(/[|{}[\]<>]/g, ' ');
+ t = t.replace(/[ \t]+/g, ' ');
+ t = t.replace(/\s*\n\s*/g, '. ');
+ t = t.replace(/([.!?])(?:\s*\1)+/g, '$1');
+ t = t.replace(/\s+([,.;:!?])/g, '$1');
+ return t.trim();
+}
+
+function ready(){window.parent.postMessage({isStreamlitMessage:true,type:'streamlit:componentReady',apiVersion:1},'*');window.parent.postMessage({isStreamlitMessage:true,type:'streamlit:setFrameHeight',height:54},'*')}
+window.addEventListener('message',e=>{
+ const d=e.data;if(!d||d.type!=='streamlit:render')return;
+ ready();const a=d.args||{};
+ if(a.speak_id!==undefined&&a.speak_id!==lastSpeakId){
+   lastSpeakId=a.speak_id;
+   if(a.speak_text){
+     if('speechSynthesis' in window){window.speechSynthesis.cancel();const textoLimpio=limpiarTextoParaVoz(a.speak_text);const u=new SpeechSynthesisUtterance(textoLimpio);u.lang='es-PE';u.rate=1.03;u.pitch=1;window.speechSynthesis.speak(u);}
+     else status.textContent='Tu navegador no admite lectura de voz.';
+   }else if('speechSynthesis' in window){window.speechSynthesis.cancel();}
+ }
+});ready();
+function stopAndSend(){
+ if(silenceTimer){clearTimeout(silenceTimer);silenceTimer=null;}
+ if(!transcript.trim())return;
+ const finalText=transcript.trim();transcript='';listening=false;
+ try{if(recognition)recognition.stop()}catch(e){}
+ mic.textContent='Dictar';status.textContent='Enviando dictado…';
+ send({text:finalText,nonce:++nonce});
+}
+function resetSilenceTimer(){if(silenceTimer)clearTimeout(silenceTimer);silenceTimer=setTimeout(stopAndSend,5000);}
+if(!SR){mic.disabled=true;status.textContent='Dictado no disponible. Prueba Chrome o Edge.';}
+else{
+ recognition=new SR();recognition.lang='es-PE';recognition.continuous=true;recognition.interimResults=true;
+ recognition.onstart=()=>{listening=true;transcript='';mic.textContent='Detener dictado';status.textContent='Habla ahora; se enviará tras 5 segundos de silencio.';};
+ recognition.onresult=e=>{
+   let interim='';
+   for(let i=e.resultIndex;i<e.results.length;i++){
+     const phrase=e.results[i][0].transcript;
+     if(e.results[i].isFinal){transcript+=' '+phrase;}else{interim+=' '+phrase;}
+   }
+   if((transcript+interim).trim()){status.textContent='Escuchado: '+(transcript+interim).trim().slice(-100);resetSilenceTimer();}
+ };
+ recognition.onerror=e=>{status.textContent='Error de micrófono: '+e.error;};
+ recognition.onend=()=>{
+   if(listening&&transcript.trim())resetSilenceTimer();
+   else if(!listening){mic.textContent='Dictar';if(status.textContent==='Enviando dictado…')status.textContent='Dictado enviado';}
+ };
+ mic.onclick=()=>{
+   if(listening){stopAndSend();return;}
+   try{transcript='';recognition.start();}catch(e){status.textContent='No se pudo iniciar. Espera un momento y vuelve a intentar.';}
+ };
+}
+</script>
+</body></html>

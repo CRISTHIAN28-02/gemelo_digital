@@ -1,0 +1,68 @@
+==============================================================================
+GEMELO DIGITAL - PLANTA DE TRATAMIENTO DE AGUA (PTAP/PTAR)
+USUARIOS DE DEMOSTRACIÓN Y ACCESOS POR MÓDULO
+==============================================================================
+
+------------------------------------------------------------------------------
+1. USUARIOS DE DEMOSTRACIÓN (creados automáticamente al primer arranque)
+------------------------------------------------------------------------------
+
+  ROL: ADMINISTRADOR
+    Correo:      admin@demo.com
+    Contraseña:  admin123
+
+  ROL: OPERADOR
+    Correo:      operador@demo.com
+    Contraseña:  operador123
+
+  *** Estas son credenciales de PRUEBA. Cámbialas (o crea nuevas cuentas y
+      desactiva estas) antes de usar el sistema fuera de un entorno de
+      demostración. La contraseña se guarda con hash SHA-256 + sal fija, lo
+      cual es válido solo para este MVP: en producción usar bcrypt/argon2. ***
+
+------------------------------------------------------------------------------
+2. MATRIZ DE ACCESO POR MÓDULO
+------------------------------------------------------------------------------
+
+  Módulo                    | Operador          | Administrador
+  ---------------------------------------------------------------------------
+  Dashboard                 | Ver                | Ver
+  Monitoreo                 | Ver + simular IoT  | Ver + simular IoT
+  Gemelo Digital            | Ver + seleccionar  | Ver + seleccionar
+                             | equipo             | equipo
+  Equipos                   | Solo consulta      | Consulta + cambiar estado
+                             |                    | + registrar mantenimiento
+  Alertas                   | Ver + cambiar      | Ver + cambiar estado
+                             | estado             |
+  Predicciones              | Ver + recalcular   | Ver + recalcular
+  Dosificación               | Calcular +         | Calcular +
+                             | historial          | historial
+  Simulación What-If        | Simular + guardar  | Simular + guardar
+  Reportes                  | Ver + exportar CSV | Ver + exportar CSV
+  Asistente IA              | Consultar          | Consultar
+  Mi Perfil                 | Ver                | Ver
+  ---------------------------------------------------------------------------
+  Usuarios                  | Sin acceso         | Crear / editar / activar
+                             |                    | o desactivar / cambiar rol
+  Sensores                  | Sin acceso         | Registrar / activar o
+                             |                    | desactivar
+  Configuración             | Sin acceso         | Umbrales, costo del
+                             |                    | químico, estado MQTT
+  Auditoría                 | Sin acceso         | Ver y exportar registro
+                             |                    | completo de acciones
+
+  Nota: un operador que intente abrir Usuarios, Sensores, Configuración o
+  Auditoría por URL directa recibe un mensaje de acceso denegado
+  ("⛔ No tienes permisos para acceder a este módulo.") en vez de ver el
+  contenido — la restricción se aplica en el propio código de cada página,
+  no solo ocultando el menú.
+
+------------------------------------------------------------------------------
+3. REGISTRO DE ACTIVIDAD (AUDITORÍA)
+------------------------------------------------------------------------------
+
+Cada inicio/cierre de sesión y cada acción relevante (crear usuario, cambiar
+estado de un equipo, registrar mantenimiento, actualizar una alerta,
+recalcular predicciones, generar una recomendación, guardar una simulación,
+registrar un sensor, cambiar configuración) queda registrada en el módulo
+Auditoría con usuario, fecha/hora, acción, módulo y resultado.
